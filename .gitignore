@@ -1,0 +1,11 @@
+graph.md
+configix/
+*.local.json
+.env
+.env.*
+node_modules/
+.DS_Store
+Thumbs.db
+data/workshop/students.zip
+data/workshop/*.3dmbak
+data/workshop/*.stpbak

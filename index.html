@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Printing Construction Industry - Global Map & Companies</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0a0a0f; color: #e0e0e0; }
+
+        header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            padding: 24px 40px;
+            border-bottom: none;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        header h1 { font-size: 1.8rem; color: #fff; letter-spacing: 1px; }
+        header h1 span { color: #e94560; }
+        .stats-bar {
+            display: flex; gap: 32px;
+        }
+        .stat { text-align: center; }
+        .stat-value { font-size: 1.6rem; font-weight: 700; color: #e94560; }
+        .stat-label { font-size: 0.75rem; text-transform: uppercase; color: #888; letter-spacing: 1px; }
+
+        .layout { display: flex; height: calc(100vh - 85px); }
+
+        #map { flex: 1; min-width: 50%; }
+
+        .sidebar {
+            width: 50%; max-width: 700px; overflow-y: auto;
+            background: rgba(17,17,17,0.3); border-left: 1px solid rgba(34,34,34,0.3);
+        }
+
+        .controls {
+            padding: 12px 16px; background: #1a1a2e;
+            border-bottom: 1px solid #333; display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+        }
+        .controls input, .controls select {
+            padding: 8px 12px; border-radius: 6px; border: 1px solid #333;
+            background: #0d0d15; color: #e0e0e0; font-size: 0.85rem;
+        }
+        .controls input { flex: 1; min-width: 180px; }
+        .controls select { min-width: 140px; }
+
+        .company-card {
+            border-bottom: 1px solid #1a1a2e; padding: 16px;
+            transition: background 0.2s; cursor: pointer; background: rgba(17,17,17,0.85);
+        }
+        .company-card:hover { background: #1a1a2e; }
+        .company-card.active { background: #16213e; border-left: 3px solid #e94560; }
+
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .card-title { display: flex; align-items: center; gap: 8px; }
+        .card-logo { width: 20px; height: 20px; border-radius: 3px; background: #222; flex-shrink: 0; }
+        .company-name { font-size: 1.05rem; font-weight: 600; color: #fff; }
+        .company-status {
+            font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;
+            text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0;
+        }
+        .status-active { background: #0d3320; color: #4ade80; }
+        .status-liquidated { background: #3b1010; color: #f87171; }
+
+        .card-meta { display: flex; gap: 16px; font-size: 0.8rem; color: #888; margin-bottom: 8px; flex-wrap: wrap; }
+        .card-meta span::before { margin-right: 4px; }
+
+        .tech-badge {
+            display: inline-block; font-size: 0.7rem; padding: 2px 8px;
+            border-radius: 4px; background: #1e293b; color: #93c5fd; margin-right: 4px; margin-bottom: 4px;
+        }
+        .material-badge {
+            display: inline-block; font-size: 0.7rem; padding: 2px 8px;
+            border-radius: 4px; background: #1a2e1a; color: #86efac; margin-right: 4px; margin-bottom: 4px;
+        }
+
+        .card-links { margin-top: 8px; display: flex; gap: 12px; }
+        .card-links a {
+            font-size: 0.8rem; color: #60a5fa; text-decoration: none;
+            display: flex; align-items: center; gap: 4px;
+        }
+        .card-links a:hover { color: #93c5fd; text-decoration: underline; }
+
+        .media-container {
+            margin-top: 10px; display: none;
+            border-radius: 8px; overflow: hidden; background: #000; position: relative; z-index: 1;
+        }
+        .media-container.show { display: block; }
+        .media-container iframe {
+            width: 100%; aspect-ratio: 16/9; border: none;
+        }
+        .media-container img {
+            width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block;
+        }
+
+        .btn-media {
+            background: #e94560; color: #fff; border: none; padding: 5px 12px;
+            border-radius: 4px; font-size: 0.75rem; cursor: pointer;
+            display: flex; align-items: center; gap: 4px;
+        }
+        .btn-media:hover { background: #c73652; }
+
+        .btn-cobod {
+            background: rgba(10,10,15,0.8); border: 1px solid #333; padding: 4px;
+            border-radius: 6px; cursor: pointer; transition: all 0.2s;
+            display: block; margin-top: 8px; width: 100%;
+        }
+        .btn-cobod img { display: block; height: 20px; width: auto; margin: 0 auto; opacity: 0.6; transition: opacity 0.2s; }
+        .btn-cobod .cobod-text { display: block; font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #4a9eed; text-align: center; opacity: 0.6; transition: opacity 0.2s; }
+        .btn-cobod.active .cobod-text { opacity: 1; color: #fff; }
+        .btn-cobod:hover .cobod-text { opacity: 1; }
+        .btn-cobod.active { background: #1a3a6b; border-color: #3b82f6; }
+        .btn-cobod.active img { opacity: 1; }
+        .btn-cobod:hover img { opacity: 1; }
+
+        .legend {
+            position: absolute; bottom: 30px; left: 10px; z-index: 1000;
+            background: rgba(10,10,15,0.9); padding: 12px 16px; border-radius: 8px;
+            border: 1px solid #333; font-size: 0.75rem;
+        }
+        .legend h4 { margin-bottom: 8px; color: #fff; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .legend-icon { font-size: 1rem; width: 18px; text-align: center; }
+        .map-icon { font-size: 20px; line-height: 1; filter: drop-shadow(0 0 3px rgba(0,0,0,0.8)); cursor: pointer; }
+
+        #company-list { padding-bottom: 40px; }
+
+        .no-results { padding: 40px; text-align: center; color: #666; font-size: 0.9rem; }
+
+        @media (max-width: 900px) {
+            .layout { flex-direction: column; height: auto; }
+            #map { height: 50vh; min-width: 100%; }
+            .sidebar { width: 100%; max-width: 100%; height: 50vh; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>3D Printing <span>Construction</span> Industry</h1>
+        <div class="stats-bar">
+            <div class="stat"><div class="stat-value" id="total-companies">0</div><div class="stat-label">Companies</div></div>
+            <div class="stat"><div class="stat-value" id="total-countries">0</div><div class="stat-label">Countries</div></div>
+            <div class="stat"><div class="stat-value" id="total-active">0</div><div class="stat-label">Active</div></div>
+        </div>
+    </header>
+
+    <div class="layout">
+        <div id="map"></div>
+        <div class="sidebar">
+            <div class="controls">
+                <input type="text" id="search" placeholder="Search company, country, technology...">
+                <select id="filter-tech">
+                    <option value="">All Technologies</option>
+                </select>
+                <select id="filter-country">
+                    <option value="">All Countries</option>
+                </select>
+            </div>
+            <div id="company-list"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+    const companies = [
+        {name:"Apis Cor",country:"USA",city:"Melbourne FL",lat:28.1427,lng:-80.6763,tech:"Robotic Arm",equip:"Apis Cor 3D printer",material:"cement, geopolymer, clay, hemp concrete",founded:2014,web:"https://apis-cor.com/",yt:"https://www.youtube.com/watch?v=xktwDfasPGQ",status:"Active",desc:"Provider of 3D printing technologies for construction"},
+        {name:"COBOD International A/S (PERI)",country:"Denmark",city:"Copenhagen",lat:55.7164,lng:12.5990,tech:"Gantry",equip:"COBOD BOD2 / BOD3",material:"concrete, geopolymer, D.fab admixture",founded:2018,web:"https://cobod.com/",yt:"https://www.youtube.com/watch?v=bsG6vLJDgV4",status:"Active",desc:"Provider of 3D construction printers"},
+        {name:"ICON",country:"USA",city:"Austin TX",lat:30.2170,lng:-97.7636,tech:"Gantry",equip:"Vulcan",material:"Lavacrete (proprietary concrete)",founded:2017,web:"https://www.iconbuild.com/",yt:"https://www.youtube.com/watch?v=a9cmTJw5cf0",status:"Active",desc:"3D printed homes and structures"},
+        {name:"WASP",country:"Italy",city:"Massa Lombarda",lat:44.4481,lng:11.8087,tech:"Delta / Gantry",equip:"WASP Crane / BigDelta",material:"clay, concrete, earth-based",founded:2012,web:"https://www.3dwasp.com/en/",yt:"https://www.youtube.com/watch?v=w9sXqxccRPM",status:"Active",desc:"3D printers for sustainable construction"},
+        {name:"CyBe Construction",country:"Netherlands",city:"s-Hertogenbosch",lat:51.7660,lng:5.5260,tech:"Robotic Arm",equip:"CyBe R 3Dp / RC 3Dp",material:"concrete, mortar",founded:2013,web:"https://cybe.eu/",yt:"https://www.youtube.com/watch?v=_G6Sg20ddwM",status:"Active",desc:"3D concrete printing solutions"},
+        {name:"XtreeE",country:"France",city:"Rungis",lat:48.7414,lng:2.3499,tech:"Robotic Arm",equip:"ABB, KUKA",material:"concrete, UHPC",founded:2015,web:"https://xtreee.com/en/",yt:"https://www.youtube.com/watch?v=PXImY6z1cKY",status:"Active",desc:"Large-scale 3D printing for construction"},
+        {name:"Contour Crafting",country:"USA",city:"Los Angeles CA",lat:33.9139,lng:-118.3837,tech:"Gantry",equip:"Contour Crafting 3D",material:"concrete",founded:2004,web:"https://www.contourcrafting.com/",yt:"https://www.youtube.com/watch?v=xZL0A0IMFVY",status:"Active",desc:"Pioneer of construction 3D printing"},
+        {name:"Mighty Buildings",country:"USA",city:"Oakland CA",lat:37.7431,lng:-122.1906,tech:"Robotic Arm",equip:"Mighty Buildings 3D",material:"light stone material (thermoset polymer)",founded:2017,web:"https://www.mightybuildings.com/",yt:"https://www.youtube.com/watch?v=uo12ImflRYQ",status:"Active",desc:"3D printed prefab homes"},
+        {name:"Winsun",country:"China",city:"Shanghai",lat:31.2034,lng:121.1027,tech:"Gantry",equip:"WinSun",material:"concrete, recycled materials",founded:2006,web:"http://www.winsun3d.com/En/",yt:"https://www.youtube.com/watch?v=SObzNdyRTBs",status:"Active",desc:"Large-scale 3D printed buildings"},
+        {name:"SQ4D",country:"USA",city:"Patchogue NY",lat:40.7667,lng:-73.0133,tech:"Gantry",equip:"ARCS",material:"concrete",founded:2017,web:"https://www.sq4d.com/",yt:"https://www.youtube.com/watch?v=9l9LzkDK3L8",status:"Active",desc:"3D printed homes for sale"},
+        {name:"Black Buffalo 3D",country:"USA",city:"East Stroudsburg PA",lat:41.0357,lng:-75.1561,tech:"Gantry",equip:"NexCon 3D",material:"concrete",founded:2020,web:"https://bb3d.io/",yt:"https://www.youtube.com/watch?v=s8Xz9ZxVSAU",status:"Active",desc:"Large-scale 3D construction printers"},
+        {name:"Constructions-3D",country:"France",city:"Bruay-sur-lEscaut",lat:50.3886,lng:3.5217,tech:"Robotic Arm",equip:"MaxiPrinter 3D",material:"concrete, mortar",founded:2016,web:"https://www.constructions-3d.com/",yt:"https://www.youtube.com/watch?v=SwaDq2XdziE",status:"Active",desc:"Mobile 3D construction printers"},
+        {name:"BetAbram",country:"Slovenia",city:"Ljubljana",lat:46.0662,lng:14.4497,tech:"Gantry",equip:"BetAbram P1, P2, P3",material:"concrete",founded:2012,web:"https://betabram.com/",yt:"https://www.youtube.com/watch?v=ch8Dqdr-U8g",status:"Active",desc:"Affordable 3D construction printers"},
+        {name:"Alquist 3D",country:"USA",city:"Greeley CO",lat:40.4214,lng:-104.7382,tech:"Gantry / Robotic Arm",equip:"COBOD, KUKA, Alquist",material:"concrete",founded:2020,web:"https://www.alquist3d.com/",yt:"https://www.youtube.com/watch?v=s0wpUP21_Tg",status:"Active",desc:"3D printed affordable housing"},
+        {name:"MudBots",country:"USA",city:"Tooele UT",lat:40.5316,lng:-112.3404,tech:"Gantry",equip:"MudBots",material:"concrete, adobe, mortar",founded:2015,web:"https://www.mudbots.com/",yt:"https://www.youtube.com/watch?v=A_5QRmtbntM",status:"Active",desc:"Concrete 3D printers for contractors"},
+        {name:"Total Kustom",country:"USA",city:"Minneapolis MN",lat:44.9398,lng:-93.1885,tech:"Gantry",equip:"StroyBot 6.2",material:"concrete",founded:2014,web:"http://www.totalkustom.com",yt:"https://www.youtube.com/watch?v=O2vkBmsRn2I",status:"Active",desc:"3D printed structures"},
+        {name:"BatiPrint3D",country:"France",city:"Nantes",lat:47.2708,lng:-1.4666,tech:"Robotic Arm",equip:"Batiprint3D",material:"concrete, polyurethane foam",founded:2017,web:"https://www.batiprint3d.com/en",yt:"https://www.youtube.com/watch?v=yGFnaqDksQY",status:"Active",desc:"3D printing social housing"},
+        {name:"BeMore3D",country:"Spain",city:"Valencia",lat:39.5128,lng:-0.4246,tech:"Gantry",equip:"BEM PRO, CUBE, SMART",material:"concrete, mortar",founded:2016,web:"https://bemore3d.com/",yt:"https://www.youtube.com/watch?v=GYx0ij4nbKA",status:"Active",desc:"3D construction printers"},
+        {name:"Printed Farms",country:"USA",city:"West Palm Beach FL",lat:26.6572,lng:-80.2595,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:2021,web:"https://printedfarms.com/",yt:"https://www.youtube.com/watch?v=pFEAk_Hk2xw",status:"Active",desc:"3D printed agricultural structures"},
+        {name:"Hyperion Robotics",country:"Finland",city:"Helsinki",lat:60.2128,lng:24.7630,tech:"Robotic Arm",equip:"KUKA",material:"low-carbon concrete",founded:2017,web:"https://www.hyperionrobotics.com/",yt:"https://www.youtube.com/watch?v=Vj5IeEIjpJs",status:"Active",desc:"Sustainable 3D concrete printing"},
+        {name:"Vertico",country:"Netherlands",city:"Eindhoven",lat:51.4416,lng:5.4697,tech:"Robotic Arm",equip:"ABB robots on gantry track",material:"concrete, UHPC",founded:2017,web:"https://www.vertico.com/",yt:"https://www.youtube.com/watch?v=aSDcKmfkPHc",status:"Active",desc:"Robotic concrete 3D printing solutions"},
+        {name:"Tvasta",country:"India",city:"Chennai",lat:12.8996,lng:80.2209,tech:"Gantry / Robotic Arm",equip:"Tvasta 3DCP",material:"concrete",founded:2016,web:"https://www.tvasta.construction/",yt:"https://www.youtube.com/watch?v=TxZ-KBgAgvg",status:"Active",desc:"3D printed construction in India"},
+        {name:"Contour3D",country:"Australia",city:"Sydney NSW",lat:-33.9850,lng:151.1319,tech:"Gantry",equip:"Contour3D system",material:"ContourCrete (proprietary)",founded:2019,web:"https://contour3d.com.au/",yt:"https://www.youtube.com/watch?v=x5spna1todE",status:"Active",desc:"3D construction printing Australia"},
+        {name:"Luyten 3D",country:"Australia",city:"Melbourne VIC",lat:-37.8136,lng:144.9631,tech:"Robotic Arm / Tower Crane",equip:"Platypus / Crane 3DP",material:"concrete, geopolymer",founded:2020,web:"https://www.luyten3d.com/",yt:"https://www.youtube.com/watch?v=xzqdAPuyxmQ",status:"Active",desc:"AI mobile 3D construction printers"},
+        {name:"Pikus 3D",country:"USA",city:"Salt Lake City UT",lat:40.7608,lng:-111.8910,tech:"Gantry",equip:"Pikus 3DCP",material:"concrete",founded:2020,web:"https://www.pikus3d.com/",yt:"https://www.youtube.com/watch?v=XMKSU3QiFNI",status:"Active",desc:"3D concrete printing services"},
+        {name:"X-Hab 3D",country:"USA",city:"State College PA",lat:40.7934,lng:-77.8600,tech:"Gantry",equip:"X-Hab Concrete Printer",material:"concrete",founded:2021,web:"https://www.xhab3d.com/",yt:"https://www.youtube.com/watch?v=_T8_COZiaDI",status:"Active",desc:"3D concrete construction printers"},
+        {name:"Diamond Age",country:"USA",city:"Phoenix AZ",lat:33.4484,lng:-112.0740,tech:"Full-stack Robotics",equip:"Diamond Age system",material:"concrete composite",founded:2020,web:"https://www.diamondage3d.com/",yt:"https://www.youtube.com/watch?v=To7QZpdFEeU",status:"Liquidated",desc:"Robotic homebuilding (closed 2024)"},
+        {name:"Aeditive",country:"Germany",city:"Hamburg",lat:53.7300,lng:10.0236,tech:"Robotic Arm",equip:"KUKA, Concrete Aeditor",material:"concrete",founded:2019,web:"https://www.aeditive.de/en/",yt:"https://www.youtube.com/watch?v=F_HL8diusK4",status:"Active",desc:"Automated concrete manufacturing"},
+        {name:"PERI 3D Construction",country:"Germany",city:"Weissenhorn",lat:48.3056,lng:10.1456,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:2018,web:"https://www.peri3dconstruction.com/",yt:"https://www.youtube.com/watch?v=3qCBpSiNWWc",status:"Active",desc:"3D printed buildings (PERI Group)"},
+        {name:"Nidus 3D",country:"Canada",city:"Kingston ON",lat:44.2420,lng:-76.4832,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:2020,web:"https://nidus3d.com/",yt:"https://www.youtube.com/watch?v=7PcT8sWOp_s",status:"Active",desc:"3D printed housing Canada"},
+        {name:"3DCP Group",country:"Denmark",city:"Holstebro",lat:56.3544,lng:8.6158,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:2019,web:"https://3dcp.dk/",yt:"https://www.youtube.com/watch?v=X6Kh7R0PRU8",status:"Active",desc:"3D concrete printing Denmark"},
+        {name:"Rebuild 3DCP",country:"Poland",city:"Bialystok",lat:53.1070,lng:23.1934,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:2020,web:"https://www.rebuild3dcp.com/",yt:"https://www.youtube.com/watch?v=WwHrL2WoCFg",status:"Active",desc:"3D printed buildings Poland"},
+        {name:"COBOD Asia Pacific",country:"Malaysia",city:"Subang Jaya",lat:3.0451,lng:101.5648,tech:"Gantry",equip:"COBOD BOD2",material:"concrete, geopolymer",founded:2018,web:"https://cobod.com/",yt:"https://www.youtube.com/watch?v=qAqzTCDEDcg",status:"Active",desc:"3D construction printers Asia Pacific"},
+        {name:"Siam Cement Group (SCG)",country:"Thailand",city:"Bangkok",lat:13.8058,lng:100.5378,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:1913,web:"https://www.scg.com/",yt:"https://www.youtube.com/watch?v=otXDFvNOdKI",status:"Active",desc:"Construction materials + 3D printing"},
+        {name:"14Trees / Mvule Gardens",country:"Kenya",city:"Kilifi",lat:-3.6537,lng:39.8399,tech:"Gantry",equip:"COBOD BOD2 / Iroko",material:"concrete",founded:2019,web:"https://mvulegardens.com",yt:"https://www.youtube.com/watch?v=RRgCMmq4vzA",status:"Active",desc:"Affordable 3D printed housing Africa"},
+        {name:"ConConcreto",country:"Colombia",city:"Medellin",lat:6.1845,lng:-75.5797,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:1961,web:"https://conconcreto.com",yt:"https://www.youtube.com/watch?v=GOJGO5_YhmU",status:"Active",desc:"Construction company with 3DCP"},
+        {name:"ABYAN",country:"Kuwait",city:"Kuwait City",lat:29.3698,lng:47.9710,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:2019,web:"https://abyan.com.kw/",yt:"https://www.youtube.com/watch?v=IkNOxOqMG88",status:"Active",desc:"3D printed construction Kuwait"},
+        {name:"Orascom Construction",country:"UAE",city:"Dubai",lat:25.2139,lng:55.2825,tech:"Gantry",equip:"COBOD BOD2, BOD2L",material:"concrete",founded:1950,web:"https://orascom.com/",yt:"https://www.youtube.com/watch?v=GfD8uyHejL8",status:"Active",desc:"Construction with 3D printing"},
+        {name:"HTL.tech (Harcourt)",country:"Ireland / UK",city:"Dublin",lat:53.3325,lng:-6.2608,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:2019,web:"https://www.htl.tech/",yt:"https://www.youtube.com/watch?v=bQYtjT-5DB0",status:"Active",desc:"3D printed construction Ireland + UKs first 46 3D-printed homes in Accrington"},
+        {name:"Fortex",country:"Australia",city:"Melbourne VIC",lat:-37.8304,lng:144.9535,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:2021,web:"https://fortexsolutions.com.au/",yt:"https://www.youtube.com/watch?v=ijzkm05oHn8",status:"Active",desc:"3D construction printing Australia"},
+        {name:"POWERBUILD",country:"Angola",city:"Luanda",lat:-8.9889,lng:13.2058,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:2020,web:"https://power2build.co.ao/pt/",yt:"https://www.youtube.com/watch?v=zRKVQ6SNLlI",status:"Active",desc:"3D printed construction Angola"},
+        {name:"CEMEX",country:"Mexico",city:"Monterrey",lat:25.6497,lng:-100.3573,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:1906,web:"https://www.cemex.com/",yt:"https://www.youtube.com/watch?v=nzo-xXr5KzU",status:"Active",desc:"Construction materials + 3DCP"},
+        {name:"Dar Al Arkan",country:"Saudi Arabia",city:"Riyadh",lat:24.6915,lng:46.7156,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:1994,web:"https://www.daralarkan.com/",yt:"https://www.youtube.com/watch?v=mTsFQIJ4CZA",status:"Active",desc:"Real estate with 3D printing"},
+        {name:"Skecoplant",country:"South Korea",city:"Seoul",lat:37.4883,lng:126.9870,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:1977,web:"https://www.skecoplant.com/",yt:"",img:"",status:"Active",desc:"Engineering + 3D construction"},
+        {name:"Hanwha E&C",country:"South Korea",city:"Seoul",lat:37.5678,lng:126.9865,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:1962,web:"https://m.hwenc.com/",yt:"",img:"",status:"Active",desc:"Construction + 3D printing"},
+        {name:"Tianhe Construction",country:"China",city:"Suzhou",lat:31.4044,lng:120.9651,tech:"Gantry",equip:"COBOD BOD2, BOD2L",material:"concrete",founded:2003,web:"https://en.thgroup.com.cn/",yt:"",img:"",status:"Active",desc:"Construction engineering China"},
+        {name:"Shanghai Construction Group",country:"China",city:"Shanghai",lat:31.2461,lng:121.4922,tech:"Various",equip:"Unknown",material:"concrete",founded:1953,web:"http://www.scg.com.cn",yt:"https://www.youtube.com/watch?v=KIYCM_V1eRY",status:"Active",desc:"Major construction group"},
+        {name:"Kajima Corporation",country:"Japan",city:"Tokyo",lat:35.6733,lng:139.7577,tech:"Robotic Arm",equip:"Kajima 3D Printing System",material:"concrete",founded:1840,web:"https://www.kajima.co.jp/",yt:"https://www.youtube.com/watch?v=nzKNhpqpYhY",status:"Active",desc:"Construction + robotics R&D"},
+        {name:"Obayashi Corporation",country:"Japan",city:"Tokyo",lat:35.6349,lng:139.7434,tech:"Robotic Arm",equip:"Obayashi system",material:"concrete",founded:1892,web:"https://www.obayashi.co.jp/",yt:"https://www.youtube.com/watch?v=amz6mkYeUiI",status:"Active",desc:"Construction + 3D printing R&D"},
+        {name:"Sika AG",country:"Switzerland",city:"Baar",lat:47.1869,lng:8.5181,tech:"Materials Supplier",equip:"n/a",material:"Sikacrete-300 3DP",founded:1910,web:"https://www.sika.com/",yt:"https://www.youtube.com/watch?v=Dv78kiQad9c",status:"Active",desc:"3D printable concrete materials"},
+        {name:"Holcim",country:"Switzerland",city:"Zug",lat:47.1660,lng:8.5155,tech:"Materials Supplier",equip:"n/a",material:"TectorPrint concrete ink",founded:1912,web:"https://www.holcim.com/",yt:"https://www.youtube.com/watch?v=2zl6cjajf9c",status:"Active",desc:"3D printable cement & concrete"},
+        {name:"Heidelberg Materials",country:"Germany",city:"Heidelberg",lat:49.4133,lng:8.6774,tech:"Materials Supplier",equip:"n/a",material:"i.tech 3D concrete",founded:1873,web:"https://www.heidelbergmaterials.com/en",yt:"https://www.youtube.com/watch?v=UQePQF_b0a8",status:"Active",desc:"3D printable construction materials"},
+        {name:"Saint-Gobain Weber",country:"Netherlands",city:"Eindhoven",lat:51.4363,lng:5.4598,tech:"Robotic Arm",equip:"ABB",material:"Weber 3D mortar",founded:1665,web:"https://www.3d.weber/",yt:"https://www.youtube.com/watch?v=dZvZg68WwFM",status:"Active",desc:"3D printable mortar solutions"},
+        {name:"Guanli Intelligent Technology",country:"China",city:"Hangzhou",lat:30.1903,lng:120.4376,tech:"Gantry",equip:"Guanli",material:"concrete",founded:2014,web:"https://guanli3d.net",yt:"https://www.youtube.com/watch?v=lfWct1foyXU",status:"Active",desc:"3D construction printers China"},
+        {name:"MiCoB",country:"India",city:"Bangalore",lat:12.9716,lng:77.5946,tech:"Gantry / Robotic Arm",equip:"MiCoB 3DCP",material:"concrete",founded:2020,web:"https://micob.in/",yt:"https://www.youtube.com/watch?v=HdtOmXp49rA",status:"Active",desc:"3D concrete printing India"},
+        {name:"Ekaksha Robotic Abstracts",country:"India",city:"Mumbai",lat:19.1200,lng:72.8890,tech:"Gantry",equip:"3DPC",material:"concrete",founded:2018,web:"https://www.ekakshalimited.com/",yt:"",img:"https://static.wixstatic.com/media/32aafe_cb8b6264a8da463db353bc9ea1d0a262~mv2.jpeg/v1/fill/w_920,h_640,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/WhatsApp%20Image%202024-08-27%20at%2016_04_41.jpeg",status:"Active",desc:"3D printing construction India"},
+        {name:"3D Print Home",country:"Spain",city:"Barcelona",lat:41.3155,lng:2.0692,tech:"Gantry",equip:"BEM PRO",material:"concrete",founded:2019,web:"https://www.3dprinthome.es/",yt:"",img:"https://www.3dprinthome.es/assets/img/casa-sobre-nosotros.jpg",status:"Active",desc:"3D printed houses Spain"},
+        {name:"WePrintHomes",country:"USA",city:"Sedona AZ",lat:34.8626,lng:-111.7873,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:2021,web:"https://weprinthomes.com/",yt:"https://www.youtube.com/watch?v=dMlUaCYYLPs",status:"Active",desc:"3D printed homes Arizona"},
+        {name:"Cementos Progreso",country:"Guatemala",city:"Guatemala City",lat:14.6030,lng:-90.5101,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:1899,web:"https://www.cempro.com/",yt:"https://www.youtube.com/watch?v=iQEsANlBNX8",status:"Active",desc:"Cement company + 3DCP"},
+        {name:"KUKA",country:"Germany",city:"Augsburg",lat:48.3682,lng:10.9358,tech:"Robot Supplier",equip:"KUKA robots",material:"n/a (robot supplier)",founded:1898,web:"https://www.kuka.com",yt:"https://www.youtube.com/watch?v=M_-21chO-Uo",status:"Active",desc:"Industrial robot arms for 3DCP"},
+        {name:"ABB",country:"Switzerland",city:"Zurich",lat:47.4115,lng:8.5415,tech:"Robot Supplier",equip:"ABB robots",material:"n/a (robot supplier)",founded:1988,web:"https://new.abb.com/products/robotics/robots",yt:"https://www.youtube.com/watch?v=AfjOFu_zDHg",status:"Active",desc:"Industrial robot arms for 3DCP"},
+        {name:"IAAC",country:"Spain",city:"Barcelona",lat:41.3968,lng:2.1944,tech:"R&D / Academic",equip:"KUKA, ABB",material:"various",founded:2001,web:"https://iaac.net/",yt:"https://www.youtube.com/watch?v=thTdyy9lSfc",status:"Active",desc:"Research institute - minibuilders"},
+        {name:"KAMP C",country:"Belgium",city:"Westerlo",lat:51.1125,lng:4.8948,tech:"Gantry",equip:"COBOD BOD2, WASP",material:"concrete",founded:2019,web:"https://www.kampc.be/",yt:"https://www.youtube.com/watch?v=lZh8E6zZdzk",status:"Active",desc:"Innovation center 3D printing"},
+        {name:"SCIB",country:"Malaysia",city:"Kuching",lat:1.5638,lng:110.3857,tech:"Gantry",equip:"COBOD BOD2",material:"concrete",founded:2000,web:"https://scib.listedcompany.com/",yt:"",img:"https://cobod.com/wp-content/uploads/2022/10/dji-0180.jpg",status:"Active",desc:"Construction + 3D printing Malaysia"},
+        {name:"Bakrie and Brothers",country:"Indonesia",city:"Jakarta",lat:-6.2413,lng:106.8611,tech:"Gantry",equip:"COBOD BOD2, BOD2L",material:"concrete",founded:1942,web:"https://bakrie-brothers.com/",yt:"https://www.youtube.com/watch?v=7v63PuuKeP0",status:"Active",desc:"Conglomerate with 3D printing"},
+        {name:"GUtech Oman",country:"Oman",city:"Muscat",lat:23.6363,lng:58.0459,tech:"R&D / Academic",equip:"COBOD BOD2",material:"concrete",founded:2007,web:"https://www.gutech.edu.om/",yt:"https://www.youtube.com/watch?v=Ktni6-Jsq4s",status:"Active",desc:"University 3DCP research"},
+        {name:"AC3D",country:"USA",city:"San Francisco CA",lat:37.7749,lng:-122.4194,tech:"Gantry / Robotic Arm",equip:"Codemason 2.0",material:"concrete",founded:2022,web:"https://ac3d-us.com/",yt:"https://www.youtube.com/watch?v=atMBYCu8M0U",status:"Active",desc:"3D printing construction automation"},
+        {name:"ETH Zurich - NCCR Digital Fabrication",country:"Switzerland",city:"Zurich",lat:47.3769,lng:8.5417,tech:"R&D / Academic",equip:"Robotic systems, Impact Printing",material:"concrete, earth-based",founded:2014,web:"https://dfab.ch/",yt:"https://www.youtube.com/watch?v=4mceXo6wJ2U",status:"Active",desc:"Digital fabrication & construction robotics research"},
+        {name:"TU Eindhoven - 3D Concrete Printing",country:"Netherlands",city:"Eindhoven",lat:51.4484,lng:5.4908,tech:"R&D / Academic",equip:"Gantry, Robotic Arm",material:"concrete",founded:2015,web:"https://www.tue.nl/en/research/research-groups/structural-engineering-and-design/3d-concrete-printing",yt:"https://www.youtube.com/watch?v=Lf2Io4sECHg",status:"Active",desc:"Project Milestone - 3D printed homes research"},
+        {name:"Loughborough University - 3DCP",country:"UK",city:"Loughborough",lat:52.7654,lng:-1.2277,tech:"R&D / Academic",equip:"Gantry",material:"concrete",founded:2010,web:"https://www.lboro.ac.uk/",yt:"https://www.youtube.com/watch?v=3XaXqLIQbr8",status:"Active",desc:"Pioneering 3D concrete printing research"},
+        {name:"TU Braunschweig / TU Munich - AMC",country:"Germany",city:"Braunschweig",lat:52.2733,lng:10.5261,tech:"R&D / Academic",equip:"Robotic systems",material:"concrete, reinforced concrete",founded:2020,web:"https://www.tu-braunschweig.de/en/amc",yt:"https://www.youtube.com/watch?v=AQ_E5Qx3mcM",status:"Active",desc:"Additive Manufacturing in Construction research network"},
+        {name:"DTU Copenhagen",country:"Denmark",city:"Copenhagen",lat:55.7867,lng:12.5232,tech:"R&D / Academic",equip:"CyBe, WASP",material:"concrete",founded:2018,web:"https://www.dtu.dk/english/",yt:"https://www.youtube.com/watch?v=G3umwj2kqc4",status:"Active",desc:"Technical University of Denmark 3DCP research"},
+        {name:"Riga Technical University",country:"Latvia",city:"Riga",lat:56.9526,lng:24.0817,tech:"R&D / Academic",equip:"KUKA",material:"concrete",founded:2019,web:"https://www.rtu.lv/en/",yt:"https://www.youtube.com/watch?v=74WOVc7-tAg",status:"Active",desc:"3D concrete printing research Latvia"},
+        {name:"Texas A&M University",country:"USA",city:"College Station TX",lat:30.6222,lng:-96.3572,tech:"R&D / Academic",equip:"Various",material:"concrete",founded:2019,web:"https://www.tamu.edu/",yt:"https://www.youtube.com/watch?v=_93rna0YABg",status:"Active",desc:"3D printing construction research"},
+        {name:"TU Braunschweig - IRP",country:"Germany",city:"Braunschweig",lat:52.2733,lng:10.5261,tech:"R&D / Academic",equip:"COBOD BOD2, Staubli",material:"concrete",founded:2018,web:"https://www.rob.cs.tu-bs.de/",yt:"https://www.youtube.com/watch?v=ctKbGHpAzso",status:"Active",desc:"Institute of Robotics and Process Control"},
+        {name:"CITA Copenhagen",country:"Denmark",city:"Copenhagen",lat:55.6813,lng:12.5985,tech:"R&D / Academic",equip:"COBOD BOD2, Staubli",material:"concrete",founded:2005,web:"https://royaldanishacademy.com/CITA",yt:"https://www.youtube.com/watch?v=VE4D2LcH9dE",status:"Active",desc:"Centre for IT and Architecture research"},
+        {name:"ChangeMaker3D",country:"UK",city:"Worcester",lat:52.1920,lng:-2.2216,tech:"Gantry",equip:"Printfrastructure system",material:"concrete, graphene-enhanced concrete",founded:2017,web:"https://changemaker3d.co.uk/",yt:"https://www.youtube.com/watch?v=wAqXo9Ysfqw",status:"Active",desc:"3D concrete printing for rail and water infrastructure (HS2)"},
+        {name:"Architectural Association (AA)",country:"UK",city:"London",lat:51.5194,lng:-0.1350,tech:"R&D / Academic",equip:"KUKA robotic arms",material:"concrete, polymers, earth-based",founded:1847,web:"https://www.aaschool.ac.uk/",yt:"https://www.youtube.com/watch?v=5s41-H8pL6Q",status:"Active",desc:"DLAB robotic fabrication and 3D printing research"},
+        {name:"BAM Nuttall",country:"UK",city:"Glasgow",lat:55.8672,lng:-4.2420,tech:"Robotic Arm",equip:"Weber Beamix 3DCP",material:"concrete",founded:1874,web:"https://www.bamnuttall.co.uk/",yt:"https://www.youtube.com/watch?v=GKA1oE92YZs",status:"Active",desc:"UKs largest 3D printed concrete structure (Sighthill Bridge)"},
+        {name:"Northumbria University",country:"UK",city:"Newcastle",lat:54.9783,lng:-1.6178,tech:"R&D / Academic",equip:"Luyten Platypus",material:"concrete, sustainable mixes",founded:2024,web:"https://www.northumbria.ac.uk/",yt:"",img:"https://www.offsitehub.co.uk/wp-content/uploads/2025/01/Dr-Mohammadali-Rezazadeh-Natalie-Wadley-and-Ahmed-Mahil.jpg",status:"Active",desc:"3D concrete printing research with Luyten and ChangeMaker3D"},
+        {name:"LAMÁQUINA (Noumena)",country:"Spain",city:"Barcelona",lat:41.4036,lng:2.1744,tech:"Robotic Arm",equip:"ABB robotic arms, WASP printers",material:"clay, concrete, biopolymers",founded:2016,web:"https://lamaquina.io/",yt:"https://www.youtube.com/watch?v=EuH4FE6upOg",status:"Active",desc:"Large-scale robotic 3D printing factory, WASP Hub Barcelona, architectural fabrication"}
+    ];
+
+    // Extract YouTube video ID
+    function getYTId(url) {
+        const m = url.match(/[?&]v=([^&]+)/);
+        return m ? m[1] : '';
+    }
+
+    // Tech color mapping
+    const techColors = {
+        'Gantry': '#3b82f6',
+        'Robotic Arm': '#10b981',
+        'Delta / Gantry': '#8b5cf6',
+        'Gantry / Robotic Arm': '#f59e0b',
+        'Robotic Arm / Tower Crane': '#06b6d4',
+        'Full-stack Robotics': '#ef4444',
+        'Materials Supplier': '#a855f7',
+        'Robot Supplier': '#64748b',
+        'R&D / Academic': '#f97316',
+        'Various': '#78716c'
+    };
+
+    function getTechColor(tech) {
+        return techColors[tech] || '#6b7280';
+    }
+
+    const techIcons = {
+        'Gantry': '\u{1F3D7}\u{FE0F}',
+        'Robotic Arm': '\u{1F9BE}',
+        'Delta / Gantry': '\u{1F4D0}',
+        'Gantry / Robotic Arm': '\u{1F504}',
+        'Robotic Arm / Tower Crane': '\u{1F3D7}\u{FE0F}',
+        'Full-stack Robotics': '\u{1F916}',
+        'Materials Supplier': '\u{1F9EA}',
+        'Robot Supplier': '\u{2699}\u{FE0F}',
+        'R&D / Academic': '\u{1F393}',
+        'Various': '\u{1F527}'
+    };
+
+    function getTechIcon(tech) {
+        return techIcons[tech] || '\u{2699}\u{FE0F}';
+    }
+
+    // Init map
+    const map = L.map('map', { zoomControl: true }).setView([25, 10], 2);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CartoDB',
+        maxZoom: 19
+    }).addTo(map);
+
+    // Add legend
+    const legend = L.control({position: 'bottomleft'});
+    legend.onAdd = function() {
+        const div = L.DomUtil.create('div', 'legend');
+        div.innerHTML = '<h4>Technology Type</h4>';
+        for (const [tech, color] of Object.entries(techColors)) {
+            const icon = techIcons[tech] || '';
+            div.innerHTML += `<div class="legend-item"><span class="legend-icon">${icon}</span><span style="color:${color}">${tech}</span></div>`;
+        }
+        const cobodImgUrl = 'https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://cobod.com&size=32';
+        div.innerHTML += `<button id="btn-cobod" class="btn-cobod" title="COBOD Network"><img src="${cobodImgUrl}" alt="COBOD" onerror="this.style.display='none';this.parentElement.querySelector('.cobod-text').style.display='block'"><span class="cobod-text" style="display:none">COBOD</span></button>`;
+        return div;
+    };
+    legend.addTo(map);
+
+    // Markers
+    const markers = {};
+    companies.forEach((c, i) => {
+        const color = getTechColor(c.tech);
+        const icon = L.divIcon({
+            html: `<span class="map-icon">${getTechIcon(c.tech)}</span>`,
+            className: '',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+            popupAnchor: [0, -12]
+        });
+        const marker = L.marker([c.lat, c.lng], { icon }).addTo(map);
+
+        marker.bindPopup(`
+            <div style="min-width:200px">
+                <strong>${c.name}</strong><br>
+                <span style="color:#888">${c.city}, ${c.country}</span><br>
+                <span style="color:${color}">${getTechIcon(c.tech)} ${c.tech}</span> | ${c.equip}<br>
+                <em>${c.material}</em><br>
+                <a href="${c.web}" target="_blank">Website</a>
+            </div>
+        `);
+
+        marker.on('click', () => {
+            const card = document.getElementById('card-' + i);
+            if (card) {
+                card.scrollIntoView({behavior: 'smooth', block: 'center'});
+                document.querySelectorAll('.company-card').forEach(el => el.classList.remove('active'));
+                card.classList.add('active');
+            }
+        });
+        markers[i] = marker;
+    });
+
+    // Stats
+    document.getElementById('total-companies').textContent = companies.length;
+    document.getElementById('total-countries').textContent = new Set(companies.map(c => c.country)).size;
+    document.getElementById('total-active').textContent = companies.filter(c => c.status === 'Active').length;
+
+    // Populate filters
+    const techs = [...new Set(companies.map(c => c.tech))].sort();
+    const countries = [...new Set(companies.map(c => c.country))].sort();
+    const techSelect = document.getElementById('filter-tech');
+    const countrySelect = document.getElementById('filter-country');
+    techs.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; techSelect.appendChild(o); });
+    countries.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; countrySelect.appendChild(o); });
+
+    // Render cards
+    function renderCards(filtered) {
+        const list = document.getElementById('company-list');
+        if (filtered.length === 0) {
+            list.innerHTML = '<div class="no-results">No companies match your filters</div>';
+            return;
+        }
+        list.innerHTML = filtered.map(({company: c, index: i}) => {
+            const domain = c.web.replace(/https?:\/\//, '').replace(/\/.*/, '');
+            const logo = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+            return `
+            <div class="company-card" id="card-${i}" onclick="flyTo(${i})">
+                <div class="card-header">
+                    <div class="card-title">
+                        <img class="card-logo" src="${logo}" alt="" onerror="this.style.display='none'">
+                        <div class="company-name">${c.name}</div>
+                    </div>
+                    <span class="company-status ${c.status === 'Active' ? 'status-active' : 'status-liquidated'}">${c.status}</span>
+                </div>
+                <div class="card-meta">
+                    <span>${c.city}, ${c.country}</span>
+                    <span>Est. ${c.founded}</span>
+                </div>
+                <div>
+                    <span class="tech-badge">${getTechIcon(c.tech)} ${c.tech}</span>
+                    <span class="tech-badge">${c.equip}</span>
+                </div>
+                <div style="margin-top:4px">
+                    ${c.material.split(',').map(m => `<span class="material-badge">${m.trim()}</span>`).join('')}
+                </div>
+                <div style="margin-top:4px;font-size:0.8rem;color:#999">${c.desc}</div>
+                <div class="card-links">
+                    <a href="${c.web}" target="_blank">Website</a>
+                    ${c.yt ? `<button class="btn-media" onclick="event.stopPropagation(); toggleMedia(${i})">&#9654; Video</button>` : c.img ? `<button class="btn-media" onclick="event.stopPropagation(); toggleMedia(${i})">&#128247; Image</button>` : ''}
+                </div>
+                <div class="media-container" id="media-${i}">
+                    ${c.yt ? `<iframe data-src="https://www.youtube.com/embed/${getYTId(c.yt)}?rel=0" allowfullscreen loading="lazy"></iframe>` : c.img ? `<img src="${c.img}" alt="${c.name}" loading="lazy">` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function flyTo(i) {
+        const c = companies[i];
+        map.flyTo([c.lat, c.lng], 8, {duration: 1});
+        markers[i].openPopup();
+        document.querySelectorAll('.company-card').forEach(el => el.classList.remove('active'));
+        document.getElementById('card-' + i).classList.add('active');
+    }
+
+    function toggleMedia(i) {
+        const el = document.getElementById('media-' + i);
+        if (!el) return;
+        el.classList.toggle('show');
+        if (el.classList.contains('show')) {
+            const iframe = el.querySelector('iframe');
+            if (iframe && !iframe.src) iframe.src = iframe.dataset.src;
+        }
+    }
+
+    const cobodBtn = document.getElementById('btn-cobod');
+    let cobodOnly = false;
+    L.DomEvent.disableClickPropagation(cobodBtn);
+    cobodBtn.addEventListener('click', () => {
+        cobodOnly = !cobodOnly;
+        cobodBtn.classList.toggle('active', cobodOnly);
+        applyFilters();
+    });
+
+    function applyFilters() {
+        const search = document.getElementById('search').value.toLowerCase();
+        const tech = techSelect.value;
+        const country = countrySelect.value;
+
+        const filtered = companies.map((c, i) => ({company: c, index: i})).filter(({company: c}) => {
+            if (cobodOnly && !c.equip.toLowerCase().includes('cobod')) return false;
+            if (tech && c.tech !== tech) return false;
+            if (country && c.country !== country) return false;
+            if (search) {
+                const s = `${c.name} ${c.country} ${c.city} ${c.tech} ${c.equip} ${c.material} ${c.desc}`.toLowerCase();
+                if (!s.includes(search)) return false;
+            }
+            return true;
+        });
+
+        renderCards(filtered);
+
+        // Update marker visibility
+        companies.forEach((c, i) => {
+            const visible = filtered.some(f => f.index === i);
+            if (visible) { markers[i].addTo(map); }
+            else { map.removeLayer(markers[i]); }
+        });
+    }
+
+    document.getElementById('search').addEventListener('input', applyFilters);
+    techSelect.addEventListener('change', applyFilters);
+    countrySelect.addEventListener('change', applyFilters);
+
+    // Initial render
+    applyFilters();
+    </script>
+</body>
+</html>
