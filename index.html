@@ -39,19 +39,43 @@
 
         .layout { display: flex; height: calc(100vh - 64px); }
 
-        #map { flex: 1; min-width: 50%; position: relative; }
-        /* Silk Aurora overlay: WebGL canvas above tiles, below markers/controls.
-           A GeoJSON land-mask in the shader makes it paint only over water, so it
-           never covers land tiles or the legend (no blend-mode needed). */
+        #map { flex: 1; min-width: 50%; position: relative; background: #050507; }
+        /* Silk Aurora sits BEHIND the tile layer (z-index 0); the dark CartoDB tiles are
+           made translucent so the teal aurora glows through the ocean naturally. No mask,
+           no overlay z-index fight, no flicker from tile repaints. */
         #silk-aurora {
             position: absolute; inset: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 350;             /* above tile pane (200), below overlay/marker panes (400/600) */
+            pointer-events: none; z-index: 0;
         }
+        .leaflet-tile-pane { opacity: 0.82; }
 
+        /* reui c-drawer-2 style: sidebar is a fixed right-edge slide drawer over a full-width map */
         .sidebar {
-            width: 50%; max-width: 700px; overflow-y: auto;
-            background: rgba(17,17,17,0.3); border-left: 1px solid rgba(34,34,34,0.3);
+            position: fixed; top: 64px; right: 0; bottom: 0;
+            width: 50%; max-width: 700px; min-width: 320px;
+            background: rgba(13,13,21,0.96); backdrop-filter: blur(8px);
+            border-left: 1px solid rgba(233,69,96,0.3);
+            box-shadow: -12px 0 40px rgba(0,0,0,0.6);
+            overflow-y: auto; z-index: 1000;
+            transform: translateX(0);
+            transition: transform 0.42s cubic-bezier(0.32, 0.72, 0, 1);
         }
+        .sidebar.closed { transform: translateX(100%); }
+        /* drag handle on the drawer's left edge (swipe to close) */
+        .drawer-handle {
+            position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%);
+            width: 6px; height: 64px; border-radius: 4px;
+            background: rgba(233,69,96,0.5); cursor: ew-resize; z-index: 1001;
+            transition: background 0.2s;
+        }
+        .drawer-handle:hover { background: #e94560; }
+        /* scrim that dims the map while the drawer is open */
+        #drawer-scrim {
+            position: fixed; inset: 64px 0 0 0; z-index: 999;
+            background: rgba(0,0,0,0); pointer-events: none;
+            transition: background 0.42s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        #drawer-scrim.show { background: rgba(0,0,0,0.35); pointer-events: auto; }
 
         .controls {
             padding: 12px 16px; background: #1a1a2e;
@@ -221,29 +245,24 @@
             transform: rotate(90deg);
         }
         .legend .toggle-tri:hover { filter: brightness(0.85); }
-        /* sidebar company-list: collapsible out of the side panel */
-        .sidebar { position: relative; }
-        .sidebar.list-collapsed #company-list { display: none; }
-        .sidebar.list-collapsed .controls { border-bottom: none; }
-        /* company-list toggle: sits on the sidebar's top-left border (points right/left to roll panel out/in) */
+        /* floating toggle to re-open the drawer once it's rolled out */
         #list-toggle {
-            position: absolute; top: 0; left: 0;
-            transform: translate(-50%, -50%);
-            border-top: 10px solid transparent; border-bottom: 10px solid transparent;
-            background: transparent;
+            position: fixed; top: 50%; right: 0; transform: translateY(-50%);
+            width: 28px; height: 80px; border-radius: 8px 0 0 8px;
+            background: rgba(13,13,21,0.92); border: 1px solid rgba(233,69,96,0.5);
+            border-right: none; cursor: pointer; z-index: 1001;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s, transform 0.42s cubic-bezier(0.32, 0.72, 0, 1);
         }
-        /* pointing left = expanded → click to roll out (collapse) */
-        #list-toggle.down {
-            border-left: 0; border-right: 12px solid #e94560;
-            transform: translate(-50%, -50%) rotate(0deg);
+        #list-toggle:hover { background: #16213e; }
+        #list-toggle::before { /* chevron pointing into the right edge */
+            content: ''; width: 0; height: 0;
+            border-top: 7px solid transparent; border-bottom: 7px solid transparent;
         }
-        /* pointing right = collapsed → click to roll back in */
-        #list-toggle.up {
-            border-left: 12px solid #e94560; border-right: 0;
-            transform: translate(-50%, -50%) rotate(0deg);
-        }
-        /* when collapsed, shrink the sidebar so the map expands */
-        .layout.list-collapsed .sidebar { width: 0; max-width: 0; overflow: hidden; border-left: none; }
+        #list-toggle.down::before { border-left: 9px solid #e94560; }   /* open: chevron right → click to close */
+        #list-toggle.up::before { border-right: 9px solid #e94560; }    /* closed: chevron left → click to open */
+        #list-toggle.down { right: 0; }                                 /* sits at edge while drawer open */
+        /* legacy list-collapsed rules removed (drawer now floats, doesn't shrink the map) */
 
         #company-list { padding-bottom: 40px; }
 
@@ -266,25 +285,27 @@
         </div>
     </header>
 
+    <div id="drawer-scrim"></div>
     <div class="layout">
         <div id="map">
             <canvas id="silk-aurora"></canvas>
         </div>
-        <div class="sidebar">
-            <div class="controls">
-                <input type="text" id="search" placeholder="Search company, country, technology...">
-                <select id="filter-tech">
-                    <option value="">All Technologies</option>
-                </select>
-                <select id="filter-country">
-                    <option value="">All Countries</option>
-                </select>
-            </div>
-            <div id="company-list"></div>
-        </div>
-        <!-- toggle triangle on the sidebar/company-list top border (roll the side panel out/in) -->
-        <button class="toggle-tri down" id="list-toggle" title="Roll side panel out"></button>
     </div>
+    <aside class="sidebar">
+        <span class="drawer-handle" id="drawer-handle" title="Drag to close"></span>
+        <div class="controls">
+            <input type="text" id="search" placeholder="Search company, country, technology...">
+            <select id="filter-tech">
+                <option value="">All Technologies</option>
+            </select>
+            <select id="filter-country">
+                <option value="">All Countries</option>
+            </select>
+        </div>
+        <div id="company-list"></div>
+    </aside>
+    <!-- floating toggle to roll the side panel out/in (right-edge drawer) -->
+    <button class="down" id="list-toggle" title="Roll side panel out"></button>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
@@ -456,13 +477,12 @@
 
         const vs = `attribute vec2 a_pos; void main(){ gl_Position = vec4(a_pos,0.0,1.0); }`;
         // Fragment shader: layered fbm-noise ribbons + pearlescent sheen + grain + vignette.
-        // A land-mask texture (u_landMask) zeroes alpha over land so the aurora paints
-        // only over water.
+        // The canvas sits BEHIND translucent tiles, so this just paints a full aurora that
+        // glows through the dark ocean tiles. No mask required.
         const fs = `precision highp float;
             uniform vec2 u_res; uniform float u_time; uniform vec2 u_mouse;
             uniform vec3 u_base, u_mid, u_sheen, u_accent;
             uniform float u_intensity, u_grain, u_vignette, u_mouseInf;
-            uniform sampler2D u_landMask;
 
             // hash + value noise + fbm
             float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
@@ -494,9 +514,9 @@
 
                 // base gradient (deep -> secondary)
                 vec3 col = mix(u_base, u_mid, ribbons);
-                // aurora accent tint flowing through — strongly biased to the accent so the
-                // teal glow reads clearly over the dark CartoDB ocean tiles
-                col = mix(col, u_accent, clamp(ribbons*0.6*u_intensity + 0.35, 0.0, 1.0));
+                // aurora accent tint flowing through — bright teal that glows through the
+                // translucent ocean tiles
+                col = mix(col, u_accent, clamp(ribbons*0.6*u_intensity + 0.4, 0.0, 1.0));
                 // pearlescent highlight
                 col += u_sheen * sheen * 0.6 * u_intensity;
 
@@ -504,17 +524,12 @@
                 float g = (hash(gl_FragCoord.xy + fract(u_time)) - 0.5) * u_grain * 0.12;
                 col += g;
 
-                // gentle vignette (kept light so the aurora stays bright across the ocean)
+                // gentle vignette
                 float vig = 1.0 - u_vignette * 0.3 * pow(length(uv-0.5)*1.3, 2.0);
                 col *= vig;
 
                 col = pow(col, vec3(0.95));
-                // land mask: the mask canvas paints land as opaque white over a transparent
-                // background (water). Use the alpha channel as the land indicator — robust to
-                // premultiply/linear-filtering edge cases. Y is flipped (canvas vs GL coords).
-                float land = texture2D(u_landMask, vec2(uv.x, 1.0 - uv.y)).a;
-                float water = 1.0 - land;
-                gl_FragColor = vec4(col, 0.92 * water);
+                gl_FragColor = vec4(col, 1.0);
             }`;
         const compile = (type, src) => {
             const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
@@ -539,19 +554,16 @@
             base: gl.getUniformLocation(prog,'u_base'), mid: gl.getUniformLocation(prog,'u_mid'),
             sheen: gl.getUniformLocation(prog,'u_sheen'), accent: gl.getUniformLocation(prog,'u_accent'),
             intensity: gl.getUniformLocation(prog,'u_intensity'), grain: gl.getUniformLocation(prog,'u_grain'),
-            vignette: gl.getUniformLocation(prog,'u_vignette'), mouseInf: gl.getUniformLocation(prog,'u_mouseInf'),
-            landMask: gl.getUniformLocation(prog,'u_landMask')
+            vignette: gl.getUniformLocation(prog,'u_vignette'), mouseInf: gl.getUniformLocation(prog,'u_mouseInf')
         };
         const hex2rgb = h => { h=h.replace('#',''); return [parseInt(h.slice(0,2),16)/255, parseInt(h.slice(2,4),16)/255, parseInt(h.slice(4,6),16)/255]; };
 
-        let maskDirty = true;   // declared here so resize() can safely set it (used before the mask section below)
         let resize = () => {
             const r = canvas.getBoundingClientRect();
             const dpr = Math.min(window.devicePixelRatio||1, 2);
             canvas.width = Math.max(2, Math.round(r.width*dpr));
             canvas.height = Math.max(2, Math.round(r.height*dpr));
             gl.viewport(0,0,canvas.width,canvas.height);
-            maskDirty = true;
         };
         resize();
         window.addEventListener('resize', resize);
@@ -564,72 +576,8 @@
             mouse = [(e.clientX-r.left)/r.width, 1.0-(e.clientY-r.top)/r.height];
         });
 
-        // ---- GeoJSON land-mask: land=white, water=black, reprojected to the current view ----
-        const maskCanvas = document.createElement('canvas');
-        const maskCtx = maskCanvas.getContext('2d');
-        let landFeatures = null;        // parsed GeoJSON features
-        // maskDirty declared above (before resize)
-        const maskTex = gl.createTexture();
-
-        // fetch the bundled Natural Earth land polygons
-        fetch('data/ne_110m_land.geojson').then(r => r.json()).then(geo => {
-            landFeatures = geo.features || [];
-            maskDirty = true;
-        }).catch(err => console.warn('land geojson load failed', err));
-
-        // draw all land polygons into maskCanvas using the CURRENT map projection
-        function buildMask() {
-            const r = canvas.getBoundingClientRect();
-            const w = Math.max(2, Math.round(r.width));
-            const h = Math.max(2, Math.round(r.height));
-            if (maskCanvas.width !== w || maskCanvas.height !== h) {
-                maskCanvas.width = w; maskCanvas.height = h;
-            }
-            maskCtx.clearRect(0, 0, w, h);
-            if (!landFeatures) return;
-            maskCtx.fillStyle = '#fff';
-            // map bounds (lat/lng) -> screen px via Leaflet's container projection
-            const project = (lat, lng) => {
-                const p = map.latLngToContainerPoint([lat, lng]);
-                return [p.x, p.y];
-            };
-            for (const feat of landFeatures) {
-                const geom = feat.geometry;
-                if (!geom) continue;
-                const polys = geom.type === 'Polygon' ? [geom.coordinates]
-                            : geom.type === 'MultiPolygon' ? geom.coordinates : [];
-                for (const rings of polys) {
-                    maskCtx.beginPath();
-                    for (let ri = 0; ri < rings.length; ri++) {
-                        const ring = rings[ri];
-                        for (let i = 0; i < ring.length; i++) {
-                            const [x, y] = project(ring[i][1], ring[i][0]);
-                            if (i === 0) maskCtx.moveTo(x, y); else maskCtx.lineTo(x, y);
-                        }
-                        maskCtx.closePath();
-                    }
-                    // fill the whole polygon (outer ring + any holes) in one evenodd pass
-                    maskCtx.fill('evenodd');
-                }
-            }
-        }
-        function uploadMask() {
-            gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-            gl.bindTexture(gl.TEXTURE_2D, maskTex);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, maskCanvas);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            // NEAREST so transparent water edges don't bleed dark alpha into land reads
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        }
-        // rebuild mask whenever the map view changes (zoom/pan)
-        map.on('moveend zoomend resize', () => { maskDirty = true; });
-
         const start = performance.now();
         function render(){
-            // rebuild + re-upload the land mask if the view/size changed
-            if (maskDirty) { buildMask(); uploadMask(); maskDirty = false; }
             gl.uniform2f(U.res, canvas.width, canvas.height);
             gl.uniform1f(U.time, (performance.now()-start)/1000);
             gl.uniform2fv(U.mouse, mouse);
@@ -641,11 +589,7 @@
             gl.uniform1f(U.grain, 0.85);
             gl.uniform1f(U.vignette, 1.0);
             gl.uniform1f(U.mouseInf, 1.0);
-            // bind land-mask texture to texture unit 0
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, maskTex);
-            gl.uniform1i(U.landMask, 0);
-            gl.clearColor(0,0,0,0);
+            gl.clearColor(0,0,0,1);
             gl.clear(gl.COLOR_BUFFER_BIT);
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
             // setTimeout (not rAF) so the aurora keeps animating in backgrounded tabs
@@ -725,28 +669,60 @@
         document.addEventListener('mouseup', onUp);
     })();
 
-    // Wire the company-list side-panel toggle (triangle on its top border → roll out/in)
-    (function setupListToggle() {
+    // Wire the right-edge drawer: slide in/out via the floating toggle + drag/swipe handle
+    (function setupDrawer() {
         const btn = document.getElementById('list-toggle');
-        const layout = document.querySelector('.layout');
         const sidebar = document.querySelector('.sidebar');
-        if (!btn || !layout || !sidebar) return;
-        const collapse = () => {
-            layout.classList.add('list-collapsed');
-            sidebar.classList.add('list-collapsed');
-            btn.classList.remove('down'); btn.classList.add('up');
-            btn.title = 'Roll side panel in';
-            setTimeout(() => map.invalidateSize(), 10);  // map resizes into the freed space
-        };
-        const expand = () => {
-            layout.classList.remove('list-collapsed');
-            sidebar.classList.remove('list-collapsed');
+        const scrim = document.getElementById('drawer-scrim');
+        const handle = document.getElementById('drawer-handle');
+        if (!btn || !sidebar || !scrim) return;
+
+        const open = () => {
+            sidebar.classList.remove('closed');
+            scrim.classList.add('show');
             btn.classList.remove('up'); btn.classList.add('down');
             btn.title = 'Roll side panel out';
-            setTimeout(() => map.invalidateSize(), 10);
         };
-        btn.classList.add('down');  // initial: expanded → triangle points to roll out
-        btn.addEventListener('click', () => sidebar.classList.contains('list-collapsed') ? expand() : collapse());
+        const close = () => {
+            sidebar.classList.add('closed');
+            scrim.classList.remove('show');
+            btn.classList.remove('down'); btn.classList.add('up');
+            btn.title = 'Roll side panel in';
+        };
+        btn.classList.add('down');           // initial: drawer open
+        btn.addEventListener('click', () => sidebar.classList.contains('closed') ? open() : close());
+        scrim.addEventListener('click', close);   // click the dim to close
+
+        // drag / swipe-to-close on the left edge handle
+        if (handle) {
+            let dragging = null;
+            const onDown = (e) => {
+                const w = sidebar.offsetWidth;
+                dragging = { x: (e.touches?e.touches[0].clientX:e.clientX), w };
+                sidebar.style.transition = 'none';
+            };
+            const onMove = (e) => {
+                if (!dragging) return;
+                const cx = e.touches?e.touches[0].clientX:e.clientX;
+                const dx = cx - dragging.x;                 // drag left → negative
+                const offset = Math.min(0, Math.max(-dragging.w, dx));
+                sidebar.style.transform = `translateX(${offset}px)`;
+            };
+            const onUp = (e) => {
+                if (!dragging) return;
+                const cx = (e.changedTouches?e.changedTouches[0].clientX:e.clientX);
+                const dx = cx - dragging.x;
+                sidebar.style.transition = ''; sidebar.style.transform = '';
+                dragging = null;
+                if (dx < -60) close(); else open();         // dragged >60px left → close
+            };
+            handle.addEventListener('mousedown', onDown);
+            handle.addEventListener('touchstart', onDown, {passive:true});
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('touchmove', onMove, {passive:true});
+            document.addEventListener('mouseup', onUp);
+            document.addEventListener('touchend', onUp);
+        }
     })();
 
     // Markers — placed directly on the map at their TRUE coords (no clustering, no
