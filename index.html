@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Printing Construction Industry - Global Map & Companies</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0a0a0f; color: #e0e0e0; }
@@ -40,14 +40,30 @@
         .layout { display: flex; height: calc(100vh - 64px); }
 
         #map { flex: 1; min-width: 50%; position: relative; background: #050507; }
-        /* Silk Aurora sits BEHIND the tile layer (z-index 0); the dark CartoDB tiles are
-           made translucent so the teal aurora glows through the ocean naturally. No mask,
-           no overlay z-index fight, no flicker from tile repaints. */
+        /* Silk Aurora sits BEHIND the map canvas (z-index 0); the dark OpenFreeMap
+           canvas is made translucent so the teal aurora glows through the ocean naturally.
+           No mask, no overlay z-index fight, no flicker from repaints. */
         #silk-aurora {
             position: absolute; inset: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 0;
         }
-        .leaflet-tile-pane { opacity: 0.82; }
+        .maplibregl-canvas { opacity: 0.82; }
+        /* dark map controls (zoom + attribution) to match the UI */
+        .maplibregl-ctrl-group {
+            background: rgba(10,10,15,0.9) !important; border: 1px solid #333;
+        }
+        .maplibregl-ctrl-group button.maplibregl-ctrl-zoom-in,
+        .maplibregl-ctrl-group button.maplibregl-ctrl-zoom-out {
+            background-color: transparent; color: #e0e0e0; width: 30px; height: 30px;
+        }
+        .maplibregl-ctrl-group button.maplibregl-ctrl-zoom-in:hover,
+        .maplibregl-ctrl-group button.maplibregl-ctrl-zoom-out:hover {
+            background-color: #1a1a2e; color: #fff;
+        }
+        .maplibregl-ctrl-attrib {
+            background: rgba(10,10,15,0.75) !important; color: #999; font-size: 10px;
+        }
+        .maplibregl-ctrl-attrib a { color: #60a5fa; }
 
         /* reui c-drawer-2 style: sidebar is a fixed right-edge slide drawer over a full-width map */
         .sidebar {
@@ -184,12 +200,14 @@
         .legend-item img.img-icon { width: 16px; height: 16px; }
         .tech-badge img.img-icon, .popup-tech img.img-icon { width: 14px; height: 14px; }
         /* Popups have a light background — keep icons dark/original there */
-        .leaflet-popup img.img-icon { width: 14px; height: 14px; filter: none; }
+        .maplibregl-popup img.img-icon { width: 14px; height: 14px; filter: none; }
         /* Delta icon scaled 2x in every context */
         img.img-icon[src*="icon-delta"] { width: 40px; height: 40px; }
         .legend-item img.img-icon[src*="icon-delta"] { width: 32px; height: 32px; }
         .tech-badge img.img-icon[src*="icon-delta"], .popup-tech img.img-icon[src*="icon-delta"] { width: 28px; height: 28px; }
-        .leaflet-popup img.img-icon[src*="icon-delta"] { width: 28px; height: 28px; }
+        .maplibregl-popup img.img-icon[src*="icon-delta"] { width: 28px; height: 28px; }
+        /* popup sizing parity with the old Leaflet popups */
+        .maplibregl-popup-content { min-width: 200px; padding: 12px 14px; border-radius: 6px; }
         /* Colored tech markers on the map + legend (pre-tinted PNGs, native color) */
         .map-icon img.marker-img {
             width: 28px; height: 28px; vertical-align: middle;
@@ -307,7 +325,7 @@
     <!-- floating toggle to roll the side panel out/in (right-edge drawer) -->
     <button class="down" id="list-toggle" title="Roll side panel out"></button>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
     <script>
     const companies = [
         {name:"Apis Cor",country:"USA",city:"Melbourne FL",lat:28.1427,lng:-80.6763,tech:"Robotic Arm",equip:"Apis Cor 3D printer",material:"cement, geopolymer, clay, hemp concrete",founded:2014,web:"https://apis-cor.com/",yt:"https://www.youtube.com/watch?v=xktwDfasPGQ",status:"Active",desc:"Provider of 3D printing technologies for construction"},
@@ -457,12 +475,18 @@
         return `<img class="marker-img" src="data/robots/c-${slug}.png" alt="${tech}">`;
     }
 
-    // Init map
-    const map = L.map('map', { zoomControl: true }).setView([25, 10], 2);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; CartoDB',
-        maxZoom: 19
-    }).addTo(map);
+    // Init map — OpenFreeMap "dark" style: fully open (OSM data, no API key,
+    // no registration, no request limits). MapLibre uses [lng, lat] order.
+    const map = new maplibregl.Map({
+        container: 'map',
+        style: 'https://tiles.openfreemap.org/styles/dark',
+        center: [10, 25],
+        zoom: 2,
+        attributionControl: { compact: true }
+    });
+    // zoom buttons at top-left (Leaflet default spot) — the map's right edge is
+    // covered by the slide-in drawer, so the MapLibre default top-right won't do
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
 
     // ---- Silk Aurora: WebGL animated background over the ocean (blend-mode overlay) ----
     // Recreation of the Componentry "silk-aurora" look: flowing satin-dark ribbons,
@@ -600,9 +624,11 @@
     })();
 
     // Add legend (draggable + collapsible via triangle toggle on its upper border)
-    const legend = L.control({position: 'bottomleft'});
-    legend.onAdd = function() {
-        const div = L.DomUtil.create('div', 'legend leaf-drag');
+    // Plain absolutely-positioned div inside #map — .legend CSS already places it
+    // at the bottom-left, above the attribution.
+    const legend = document.createElement('div');
+    legend.className = 'legend leaf-drag';
+    {
         let body = '<h4>Technology Type</h4>';
         for (const [tech, color] of Object.entries(techColors)) {
             const icon = getMarkerIcon(tech);
@@ -611,10 +637,9 @@
         const cobodImgUrl = 'https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://cobod.com&size=32';
         body += `<button id="btn-cobod" class="btn-cobod" title="COBOD Network"><img src="${cobodImgUrl}" alt="COBOD" onerror="this.style.display='none';this.parentElement.querySelector('.cobod-text').style.display='block'"><span class="cobod-text" style="display:none">COBOD</span></button>`;
         // toggle triangles: .down shows when expanded, .up shows when collapsed
-        div.innerHTML = `<button class="toggle-tri down" title="Roll up"></button><button class="toggle-tri up" title="Roll down"></button><div class="legend-body">${body}</div>`;
-        return div;
-    };
-    legend.addTo(map);
+        legend.innerHTML = `<button class="toggle-tri down" title="Roll up"></button><button class="toggle-tri up" title="Roll down"></button><div class="legend-body">${body}</div>`;
+    }
+    document.getElementById('map').appendChild(legend);
 
     // Wire the legend: toggle + drag (after it's in the DOM)
     (function setupLegend() {
@@ -627,10 +652,11 @@
         legendEl.querySelector('.toggle-tri.down').addEventListener('click', (e) => { e.stopPropagation(); collapse(); });
         legendEl.querySelector('.toggle-tri.up').addEventListener('click', (e) => { e.stopPropagation(); expand(); });
 
-        // --- dragging by the header (h4) area; stop Leaflet from intercepting the events ---
-        L.DomEvent.disableClickPropagation(legendEl);
-        L.DomEvent.disableScrollPropagation(legendEl);
-        // Keep Leaflet map drag from fighting the legend drag, but don't block the inner controls
+        // --- dragging by the header (h4) area; keep map interactions out ---
+        legendEl.addEventListener('mousedown', (e) => e.stopPropagation());
+        legendEl.addEventListener('wheel', (e) => e.stopPropagation());
+        legendEl.addEventListener('dblclick', (e) => e.stopPropagation());
+        // Keep the map drag from fighting the legend drag, but don't block inner controls
         legendEl.querySelectorAll('.legend-body, .btn-cobod').forEach(el => {
             el.addEventListener('mousedown', (ev) => ev.stopPropagation());
         });
@@ -733,18 +759,26 @@
     const MARKER_PX = 28;        // icon footprint used for overlap testing
     const PASSES = 30;           // relaxation passes — more passes = tighter separation
 
+    // Only one popup open at a time (Leaflet auto-close parity)
+    let openPopupIdx = null;
+    function closeOtherPopups(exceptIdx) {
+        if (openPopupIdx === null || openPopupIdx === exceptIdx) return;
+        const prev = markers[openPopupIdx];
+        if (prev && prev.marker.getPopup()?.isOpen()) prev.marker.togglePopup();
+    }
+
     companies.forEach((c, i) => {
         const color = getTechColor(c.tech);
-        const icon = L.divIcon({
-            html: `<span class="map-icon">${getMarkerIcon(c.tech)}</span>`,
-            className: '',
-            iconSize: [MARKER_PX, MARKER_PX],
-            iconAnchor: [MARKER_PX/2, MARKER_PX/2],
-            popupAnchor: [0, -MARKER_PX/2]
-        });
-        const marker = L.marker([c.lat, c.lng], { icon, techType: c.tech, trueLat: c.lat, trueLng: c.lng });
+        // MapLibre marker: custom DOM element centered on the coords (divIcon parity)
+        const el = document.createElement('div');
+        el.style.width = MARKER_PX + 'px';
+        el.style.height = MARKER_PX + 'px';
+        el.innerHTML = `<span class="map-icon">${getMarkerIcon(c.tech)}</span>`;
+        const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+            .setLngLat([c.lng, c.lat])
+            .addTo(map);
 
-        marker.bindPopup(`
+        marker.setPopup(new maplibregl.Popup({ offset: 16 }).setHTML(`
             <div style="min-width:200px">
                 <strong>${c.name}</strong><br>
                 <span style="color:#888">${c.city}, ${c.country}</span><br>
@@ -752,18 +786,21 @@
                 <em>${c.material}</em><br>
                 <a href="${c.web}" target="_blank">Website</a>
             </div>
-        `);
+        `));
 
-        marker.on('click', () => {
+        el.addEventListener('click', () => {
+            // MapLibre's setPopup() already toggles the popup on element click;
+            // here we only close other popups + sync the tracking index
+            closeOtherPopups(i);
+            openPopupIdx = marker.getPopup().isOpen() ? i : null;
             const card = document.getElementById('card-' + i);
             if (card) {
                 card.scrollIntoView({behavior: 'smooth', block: 'center'});
-                document.querySelectorAll('.company-card').forEach(el => el.classList.remove('active'));
+                document.querySelectorAll('.company-card').forEach(c => c.classList.remove('active'));
                 card.classList.add('active');
             }
         });
-        markers[i] = marker;
-        marker.addTo(map);
+        markers[i] = { marker, trueLat: c.lat, trueLng: c.lng, onMap: true };
     });
 
     // ---- Screen-space declutter: push overlapping markers apart, zoom-aware ----
@@ -778,8 +815,8 @@
         const pts = [];
         for (const i in markers) {
             const m = markers[i];
-            if (!map.hasLayer(m)) continue;
-            const p = map.latLngToLayerPoint(L.latLng(m.options.trueLat, m.options.trueLng));
+            if (!m.onMap) continue;
+            const p = map.project([m.trueLng, m.trueLat]);   // [lng, lat] -> px
             pts.push({ m, x: p.x, y: p.y });
         }
         const minDist = MARKER_PX * 0.9;   // overlap threshold in px
@@ -800,10 +837,10 @@
                 }
             }
         }
-        // apply the resolved positions back to the markers (convert px -> latlng)
+        // apply the resolved positions back to the markers (convert px -> lnglat)
         pts.forEach(p => {
-            const ll = map.layerPointToLatLng([p.x, p.y]);
-            p.m.setLatLng(ll);
+            const ll = map.unproject([p.x, p.y]);
+            p.m.marker.setLngLat(ll);
         });
     }
     // re-run whenever the viewport changes (zoom/pan) — debounced via moveend.
@@ -813,9 +850,12 @@
         if (declutterTimer) clearTimeout(declutterTimer);
         declutterTimer = setTimeout(() => { declutterTimer = null; declutter(); }, 30);
     };
-    map.on('zoomend moveend', scheduleDeclutter);
-    // first pass once the map is ready
-    map.whenReady(declutter);
+    map.on('moveend', scheduleDeclutter);
+    map.on('zoomend', scheduleDeclutter);
+    // first pass right away (markers are DOM elements, already placed) and again
+    // once the style is fully loaded
+    declutter();
+    map.on('load', declutter);
 
     // Stats
     document.getElementById('total-companies').textContent = companies.length;
@@ -937,8 +977,14 @@
 
     function flyTo(i) {
         const c = companies[i];
-        map.flyTo([c.lat, c.lng], 8, {duration: 1});
-        setTimeout(() => markers[i].openPopup(), 1000);
+        map.flyTo({ center: [c.lng, c.lat], zoom: 8, duration: 1 });
+        setTimeout(() => {
+            const entry = markers[i];
+            if (!entry || !entry.onMap) return;
+            closeOtherPopups(i);
+            if (!entry.marker.getPopup().isOpen()) entry.marker.togglePopup();
+            openPopupIdx = i;
+        }, 1000);
         document.querySelectorAll('.company-card').forEach(el => el.classList.remove('active'));
         document.getElementById('card-' + i).classList.add('active');
     }
@@ -955,7 +1001,7 @@
 
     const cobodBtn = document.getElementById('btn-cobod');
     let cobodOnly = false;
-    L.DomEvent.disableClickPropagation(cobodBtn);
+    cobodBtn.addEventListener('click', (e) => e.stopPropagation());
     cobodBtn.addEventListener('click', () => {
         cobodOnly = !cobodOnly;
         cobodBtn.classList.toggle('active', cobodOnly);
@@ -983,8 +1029,8 @@
         // Update marker visibility (markers live directly on the map)
         companies.forEach((c, i) => {
             const visible = filtered.some(f => f.index === i);
-            if (visible) { markers[i].addTo(map); }
-            else { map.removeLayer(markers[i]); }
+            if (visible) { markers[i].marker.addTo(map); markers[i].onMap = true; }
+            else { markers[i].marker.remove(); markers[i].onMap = false; }
         });
         // re-spread the visible markers so none overlap after the filter change
         scheduleDeclutter();

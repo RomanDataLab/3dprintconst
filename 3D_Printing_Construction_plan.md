@@ -71,7 +71,7 @@ Build an interactive global map and dashboard of the 3D printing construction in
 
 ## Tech Stack
 - HTML5 + CSS3 + Vanilla JavaScript (standalone, no build step)
-- Leaflet.js (interactive map with CartoDB dark tiles)
+- MapLibre GL JS (interactive map with OpenFreeMap dark vector tiles — no API key)
 - YouTube Embed API (company videos)
 - CSV (data export format)
 

@@ -9,3 +9,4 @@ Thumbs.db
 data/workshop/students.zip
 data/workshop/*.3dmbak
 data/workshop/*.stpbak
+.zcode/
