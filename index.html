@@ -30,7 +30,7 @@
         .stats-bar {
             position: absolute; right: 24px; top: 50%; transform: translateY(-50%);
             display: flex; gap: 24px; z-index: 5;
-            background: rgba(10,10,15,0.55); padding: 6px 16px; border-radius: 8px;
+            background: rgba(10,10,15,0.5); padding: 6px 16px; border-radius: 8px;
             border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(4px);
         }
         .stat { text-align: center; }
@@ -50,7 +50,7 @@
         .maplibregl-canvas { opacity: 0.82; }
         /* dark map controls (zoom + attribution) to match the UI */
         .maplibregl-ctrl-group {
-            background: rgba(10,10,15,0.9) !important; border: 1px solid #333;
+            background: rgba(10,10,15,0.5) !important; border: 1px solid #333;
         }
         .maplibregl-ctrl-group button.maplibregl-ctrl-zoom-in,
         .maplibregl-ctrl-group button.maplibregl-ctrl-zoom-out {
@@ -61,7 +61,7 @@
             background-color: #1a1a2e; color: #fff;
         }
         .maplibregl-ctrl-attrib {
-            background: rgba(10,10,15,0.75) !important; color: #999; font-size: 10px;
+            background: rgba(10,10,15,0.5) !important; color: #999; font-size: 10px;
         }
         .maplibregl-ctrl-attrib a { color: #60a5fa; }
 
@@ -69,7 +69,7 @@
         .sidebar {
             position: fixed; top: 64px; right: 0; bottom: 0;
             width: 50%; max-width: 700px; min-width: 320px;
-            background: rgba(13,13,21,0.96); backdrop-filter: blur(8px);
+            background: rgba(13,13,21,0.5); backdrop-filter: blur(8px);
             border-left: 1px solid rgba(255,255,255,0.3);
             box-shadow: -12px 0 40px rgba(0,0,0,0.6);
             overflow-y: auto; z-index: 1000;
@@ -94,22 +94,22 @@
         #drawer-scrim.show { background: rgba(0,0,0,0.35); pointer-events: auto; }
 
         .controls {
-            padding: 12px 16px; background: #1a1a2e;
+            padding: 12px 16px; background: rgba(26,26,46,0.5);
             border-bottom: 1px solid #333; display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
         }
         .controls input, .controls select {
             padding: 8px 12px; border-radius: 6px; border: 1px solid #333;
-            background: #0d0d15; color: #e0e0e0; font-size: 0.85rem;
+            background: rgba(13,13,21,0.5); color: #e0e0e0; font-size: 0.85rem;
         }
         .controls input { flex: 1; min-width: 180px; }
         .controls select { min-width: 140px; }
 
         .company-card {
             border-bottom: 1px solid #1a1a2e; padding: 16px;
-            transition: background 0.2s; cursor: pointer; background: rgba(17,17,17,0.85);
+            transition: background 0.2s; cursor: pointer; background: rgba(17,17,17,0.5);
         }
-        .company-card:hover { background: #1a1a2e; }
-        .company-card.active { background: #16213e; border-left: 3px solid #fff; }
+        .company-card:hover { background: rgba(26,26,46,0.6); }
+        .company-card.active { background: rgba(22,33,62,0.7); border-left: 3px solid #fff; }
 
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
         .card-title { display: flex; align-items: center; gap: 8px; }
@@ -168,7 +168,7 @@
         .btn-media:hover { background: #c73652; }
 
         .btn-cobod {
-            background: rgba(10,10,15,0.8); border: 1px solid #333; padding: 4px;
+            background: rgba(10,10,15,0.5); border: 1px solid #333; padding: 4px;
             border-radius: 6px; cursor: pointer; transition: all 0.2s;
             display: block; margin-top: 8px; width: 100%;
         }
@@ -176,13 +176,13 @@
         .btn-cobod .cobod-text { display: block; font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #4a9eed; text-align: center; opacity: 0.6; transition: opacity 0.2s; }
         .btn-cobod.active .cobod-text { opacity: 1; color: #fff; }
         .btn-cobod:hover .cobod-text { opacity: 1; }
-        .btn-cobod.active { background: #1a3a6b; border-color: #3b82f6; }
+        .btn-cobod.active { background: rgba(26,58,107,0.7); border-color: #3b82f6; }
         .btn-cobod.active img { opacity: 1; }
         .btn-cobod:hover img { opacity: 1; }
 
         .legend {
             position: absolute; bottom: 30px; left: 10px; z-index: 1000;
-            background: rgba(10,10,15,0.9); padding: 12px 16px; border-radius: 8px;
+            background: rgba(10,10,15,0.5); padding: 12px 16px; border-radius: 8px;
             border: 1px solid #333; font-size: 0.5rem; text-transform: uppercase;
             width: 250px;
         }
@@ -230,7 +230,7 @@
         .legend-body {
             position: absolute; bottom: 100%; left: 0; width: 100%;
             margin-bottom: 8px; padding: 12px 16px;
-            background: rgba(10,10,15,0.9); border: 1px solid #333; border-radius: 8px;
+            background: rgba(10,10,15,0.5); border: 1px solid #333; border-radius: 8px;
         }
         .legend-toggle {
             display: inline-flex; align-items: center; justify-content: center;
@@ -252,12 +252,12 @@
         #list-toggle {
             position: fixed; top: 50%; right: 0; transform: translateY(-50%);
             width: 28px; height: 80px; border-radius: 8px 0 0 8px;
-            background: rgba(13,13,21,0.92); border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(13,13,21,0.5); border: 1px solid rgba(255,255,255,0.3);
             border-right: none; cursor: pointer; z-index: 1001;
             display: flex; align-items: center; justify-content: center;
             transition: background 0.2s, transform 0.42s cubic-bezier(0.32, 0.72, 0, 1);
         }
-        #list-toggle:hover { background: #16213e; }
+        #list-toggle:hover { background: rgba(22,33,62,0.7); }
         #list-toggle::before { /* chevron pointing into the right edge */
             content: ''; width: 0; height: 0;
             border-top: 7px solid transparent; border-bottom: 7px solid transparent;
