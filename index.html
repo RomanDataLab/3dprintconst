@@ -81,10 +81,10 @@
         .drawer-handle {
             position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%);
             width: 6px; height: 64px; border-radius: 4px;
-            background: rgba(233,69,96,0.5); cursor: ew-resize; z-index: 1001;
+            background: rgba(255,255,255,0.5); cursor: ew-resize; z-index: 1001;
             transition: background 0.2s;
         }
-        .drawer-handle:hover { background: #e94560; }
+        .drawer-handle:hover { background: #fff; }
         /* scrim that dims the map while the drawer is open */
         #drawer-scrim {
             position: fixed; inset: 64px 0 0 0; z-index: 999;
@@ -109,7 +109,7 @@
             transition: background 0.2s; cursor: pointer; background: rgba(17,17,17,0.85);
         }
         .company-card:hover { background: #1a1a2e; }
-        .company-card.active { background: #16213e; border-left: 3px solid #e94560; }
+        .company-card.active { background: #16213e; border-left: 3px solid #fff; }
 
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
         .card-title { display: flex; align-items: center; gap: 8px; }
@@ -184,8 +184,9 @@
             position: absolute; bottom: 30px; left: 10px; z-index: 1000;
             background: rgba(10,10,15,0.9); padding: 12px 16px; border-radius: 8px;
             border: 1px solid #333; font-size: 0.5rem; text-transform: uppercase;
+            width: 250px;
         }
-        .legend h4 { margin-bottom: 8px; color: #fff; }
+        .legend h4 { color: #fff; }
         .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
         /* icon column: fixed left-aligned slot (biggest icon ~28px keeps icons flush left) */
         .legend-icon { font-size: 1rem; width: 32px; flex: 0 0 32px; display: flex; justify-content: flex-start; align-items: center; }
@@ -222,52 +223,36 @@
         .legend-item img.marker-img[src*="c-delta"] { width: 28px; height: 28px; }
 
         /* ---- Collapsible / draggable legend + company-list toggle ---- */
-        .toggle-tri {
-            position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
-            width: 0; height: 0; cursor: pointer; z-index: 1001;
-            border-left: 10px solid transparent; border-right: 10px solid transparent;
-            background: transparent; padding: 0; border-top: 0; transition: filter 0.15s;
+        /* Bar with title + chevron stays fixed at the bottom-left; the items panel
+           expands upward from it, so the toggle button never moves on collapse. */
+        .legend-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .legend-bar h4 { margin: 0; white-space: nowrap; }
+        .legend-body {
+            position: absolute; bottom: 100%; left: 0; width: 100%;
+            margin-bottom: 8px; padding: 12px 16px;
+            background: rgba(10,10,15,0.9); border: 1px solid #333; border-radius: 8px;
         }
-        .toggle-tri:hover { filter: brightness(1.3); }
-        /* triangle pointing up (panel collapsed → click to expand) */
-        .toggle-tri.up {
-            border-bottom: 12px solid #e94560;
-            transform: translateX(-50%) translateY(-11px);
+        .legend-toggle {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 22px; height: 22px; padding: 0; flex-shrink: 0;
+            background: rgba(255,255,255,0.08); color: #fff;
+            border: 1px solid rgba(255,255,255,0.25); border-radius: 5px;
+            cursor: pointer; transition: background 0.15s;
         }
-        /* triangle pointing down (panel expanded → click to collapse) */
-        .toggle-tri.down {
-            border-top: 12px solid #e94560;
-            transform: translateX(-50%) translateY(-1px);
-        }
+        .legend-toggle:hover { background: rgba(255,255,255,0.18); }
+        .legend-toggle svg { display: block; transition: transform 0.2s; }
+        .legend.collapsed .legend-toggle svg { transform: rotate(180deg); }
         /* legend: draggable + collapsible */
         .legend.leaf-drag { cursor: grab; }
         .legend.leaf-drag.dragging { cursor: grabbing; }
         .legend.leaf-drag .legend-body { cursor: default; }
         .legend.collapsed .legend-body,
         .legend.collapsed #btn-cobod { display: none; }
-        .legend.collapsed .toggle-tri.down { display: none; }
-        .legend:not(.collapsed) .toggle-tri.up { display: none; }
-        .legend.collapsed h4 { margin-bottom: 0; }
-        /* Legend toggle: inside the top-left corner, white, half-size, rotated 45° */
-        .legend .toggle-tri {
-            top: 6px; left: 6px;
-            border-left-width: 5px; border-right-width: 5px;
-            transform-origin: top left;
-        }
-        .legend .toggle-tri.up {
-            border-bottom: 6px solid #fff;
-            transform: rotate(90deg);
-        }
-        .legend .toggle-tri.down {
-            border-top: 6px solid #fff;
-            transform: rotate(90deg);
-        }
-        .legend .toggle-tri:hover { filter: brightness(0.85); }
         /* floating toggle to re-open the drawer once it's rolled out */
         #list-toggle {
             position: fixed; top: 50%; right: 0; transform: translateY(-50%);
             width: 28px; height: 80px; border-radius: 8px 0 0 8px;
-            background: rgba(13,13,21,0.92); border: 1px solid rgba(233,69,96,0.5);
+            background: rgba(13,13,21,0.92); border: 1px solid rgba(255,255,255,0.3);
             border-right: none; cursor: pointer; z-index: 1001;
             display: flex; align-items: center; justify-content: center;
             transition: background 0.2s, transform 0.42s cubic-bezier(0.32, 0.72, 0, 1);
@@ -277,8 +262,8 @@
             content: ''; width: 0; height: 0;
             border-top: 7px solid transparent; border-bottom: 7px solid transparent;
         }
-        #list-toggle.down::before { border-left: 9px solid #e94560; }   /* open: chevron right → click to close */
-        #list-toggle.up::before { border-right: 9px solid #e94560; }    /* closed: chevron left → click to open */
+        #list-toggle.down::before { border-left: 9px solid #fff; }   /* open: chevron right → click to close */
+        #list-toggle.up::before { border-right: 9px solid #fff; }    /* closed: chevron left → click to open */
         #list-toggle.down { right: 0; }                                 /* sits at edge while drawer open */
         /* legacy list-collapsed rules removed (drawer now floats, doesn't shrink the map) */
 
@@ -629,15 +614,19 @@
     const legend = document.createElement('div');
     legend.className = 'legend leaf-drag';
     {
-        let body = '<h4>Technology Type</h4>';
+        let body = '';
         for (const [tech, color] of Object.entries(techColors)) {
             const icon = getMarkerIcon(tech);
             body += `<div class="legend-item"><span class="legend-icon">${icon}</span><span style="color:${color}">${tech}</span></div>`;
         }
         const cobodImgUrl = 'https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://cobod.com&size=32';
         body += `<button id="btn-cobod" class="btn-cobod" title="COBOD Network"><img src="${cobodImgUrl}" alt="COBOD" onerror="this.style.display='none';this.parentElement.querySelector('.cobod-text').style.display='block'"><span class="cobod-text" style="display:none">COBOD</span></button>`;
-        // toggle triangles: .down shows when expanded, .up shows when collapsed
-        legend.innerHTML = `<button class="toggle-tri down" title="Roll up"></button><button class="toggle-tri up" title="Roll down"></button><div class="legend-body">${body}</div>`;
+        // fixed bar: title + standard chevron toggle; items panel floats above it
+        legend.innerHTML = `<div class="legend-body">${body}</div>` +
+            `<div class="legend-bar"><h4>Technology Type</h4>` +
+            `<button class="legend-toggle" title="Toggle legend" aria-label="Toggle legend">` +
+            `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>` +
+            `</button></div>`;
     }
     document.getElementById('map').appendChild(legend);
 
@@ -646,11 +635,12 @@
         const legendEl = document.querySelector('.legend.leaf-drag');
         if (!legendEl) return;
 
-        // --- collapse / roll-up via the triangle button on the upper border ---
-        const collapse = () => legendEl.classList.add('collapsed');
-        const expand = () => legendEl.classList.remove('collapsed');
-        legendEl.querySelector('.toggle-tri.down').addEventListener('click', (e) => { e.stopPropagation(); collapse(); });
-        legendEl.querySelector('.toggle-tri.up').addEventListener('click', (e) => { e.stopPropagation(); expand(); });
+        // --- collapse / expand via the chevron in the fixed bar ---
+        const toggleBtn = legendEl.querySelector('.legend-toggle');
+        toggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            legendEl.classList.toggle('collapsed');
+        });
 
         // --- dragging by the header (h4) area; keep map interactions out ---
         legendEl.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -663,8 +653,8 @@
 
         let drag = null;
         const onDown = (e) => {
-            // ignore drags that start on the toggle buttons or interactive children
-            if (e.target.closest('.toggle-tri, .btn-cobod, a, img')) return;
+            // ignore drags that start on the toggle button or interactive children
+            if (e.target.closest('.legend-toggle, .btn-cobod, a, img')) return;
             // capture viewport-relative start position (parent-agnostic)
             const r = legendEl.getBoundingClientRect();
             drag = { mx: e.clientX, my: e.clientY, lx: r.left, ly: r.top };
